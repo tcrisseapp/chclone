@@ -1,0 +1,10 @@
+version: v1beta1
+build:
+  roots:
+    - ./svc/voice_server/proto
+lint:
+  use:
+    - DEFAULT
+breaking:
+  use:
+    - FILE
