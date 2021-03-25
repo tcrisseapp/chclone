@@ -1,0 +1,10 @@
+svc: "backend"
+grpc-port: 3550
+http-port: 8080
+
+# Postgres configuration
+pg-host: "postgres"
+pg-user: "chclone"
+pg-pass: "chclone"
+pg-port: "5432"
+pg-dbname: "chclone"

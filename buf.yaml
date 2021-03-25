@@ -1,7 +1,10 @@
 version: v1beta1
+name: buf.build/trconley/clubhouse-backend-clone
+deps:
+  - buf.build/beta/googleapis
 build:
   roots:
-    - ./svc/voice_server/proto
+    - ./svc/backend/proto
 lint:
   use:
     - DEFAULT

@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+option go_package = "backend/v1;backend_v1";
+
+package backend.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service BackendService {
+    rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse) {
+        option (google.api.http) = {
+          post: "/v1/rooms"
+          body: "*"
+        };
+    }
+
+    rpc ListRooms(google.protobuf.Empty) returns (ListRoomsResponse) {
+        option (google.api.http) = {
+          get: "/v1/rooms"
+        };
+    }
+}
+
+message CreateRoomRequest {
+    string name = 1;
+}
+
+message CreateRoomResponse {
+    Room room = 1;
+}
+
+message ListRoomsResponse {
+    repeated Room rooms = 1;
+}
+
+message Room {
+    string id = 1;
+    string name = 2;
+    google.protobuf.Timestamp created_at = 3;
+}

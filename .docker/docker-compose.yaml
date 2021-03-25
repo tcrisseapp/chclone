@@ -1,0 +1,50 @@
+version: "3"
+
+services:
+  backend:
+    build:
+      context: ../
+      dockerfile: .docker/svc/Dockerfile
+      args:
+          binary: ../svc/backend/bin/main
+    privileged: true
+    extra_hosts:
+      - postgres:172.16.16.2
+    ports:
+        - "3550:3550"
+        - "8080:8080"
+    volumes:
+        - ../svc/backend/config.yaml:/home/app/config.yaml
+    networks:
+      chclone:
+        ipv4_address: 172.16.16.1
+    depends_on:
+      - postgres
+  postgres:
+    image: postgres
+    environment:
+        - POSTGRES_HOST=postgres
+        - POSTGRES_USER=chclone
+        - POSTGRES_PASSWORD=chclone
+        - POSTGRES_DB=chclone
+        - POSTGRES_PORT=5432
+    volumes:
+      - db:/var/lib/postgresql/data
+    expose:
+      - "5432"
+    ports:
+      - "5432:5432"
+    privileged: false
+    networks:
+      chclone:
+        ipv4_address: 172.16.16.2
+
+volumes:
+  db:
+
+networks:
+  chclone:
+    ipam:
+      driver: default
+      config:
+        - subnet: "172.16.16.0/16"
