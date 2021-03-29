@@ -1,14 +1,14 @@
 syntax = "proto3";
 
-option go_package = "backend/v1;backend_v1";
+option go_package = "room/v1;room_v1";
 
-package backend.v1;
+package room.v1;
 
 import "google/api/annotations.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
-service BackendService {
+service RoomService {
     rpc CreateRoom(CreateRoomRequest) returns (CreateRoomResponse) {
         option (google.api.http) = {
           post: "/v1/rooms"

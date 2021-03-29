@@ -29,10 +29,20 @@ type BaseModel struct {
 	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
+// NewBaseModel will initiate a new BaseModel with uuid generated
+func NewBaseModel(id *uuid.UUID) BaseModel {
+	if id == nil {
+		genId := uuid.Must(uuid.NewV4(), nil)
+		id = &genId
+	}
+	return BaseModel{
+		ID: *id,
+	}
+}
+
 // Init will initialise a new database
 func Init(config *Config) (*gorm.DB, error) {
 	conn := fmt.Sprintf(connString, config.Hostname, config.Port, config.Username, config.DBName, config.Password)
-	fmt.Println(conn)
 	db, err := gorm.Open(postgres.New(postgres.Config{
 		DSN:                  conn,
 		PreferSimpleProtocol: true,

@@ -1,18 +1,22 @@
 FROM golang:1.16-alpine as builder
 
-RUN mkdir -p /backend/
+ARG SERVICE
 
-WORKDIR /backend
+RUN mkdir -p /${SERVICE}/
+
+WORKDIR /${SERVICE}
 
 COPY . .
 
 RUN go mod download
 
-RUN CGO_ENABLED=0 go build -ldflags "-s -w" -a -o bin/main svc/backend/*.go
+RUN CGO_ENABLED=0 go build -ldflags "-s -w" -a -o bin/main cmd/${SERVICE}/*.go
 
 FROM alpine:3.13
 
-LABEL maintainer="trconley"
+ARG SERVICE
+
+LABEL maintainer="TRConley"
 
 RUN addgroup -S app \
     && adduser -S -G app app \
@@ -21,9 +25,10 @@ RUN addgroup -S app \
 
 WORKDIR /home/app
 
-COPY --from=builder /backend/bin/main .
+COPY --from=builder /${SERVICE}/bin/main .
+
 RUN chown -R app:app ./
 
 USER app
 
-CMD ["./main"]/
+CMD ["./main"]

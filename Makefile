@@ -1,6 +1,6 @@
 up:
-	@docker-compose -f ./.docker/docker-compose.yaml build
-	@docker-compose -f ./.docker/docker-compose.yaml up
+	@docker-compose -f docker-compose.yaml up -d --build --force-recreate
 
 down: 
-	@docker-compose -f ./.docker/docker-compose.yaml down
+	@docker-compose -f docker-compose.yaml down
+	@docker volume rm docker_db

@@ -4,7 +4,7 @@ deps:
   - buf.build/beta/googleapis
 build:
   roots:
-    - ./svc/backend/proto
+    - proto/
 lint:
   use:
     - DEFAULT

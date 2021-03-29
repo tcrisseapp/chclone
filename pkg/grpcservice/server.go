@@ -22,70 +22,81 @@ type Config struct {
 	HTTPPort    int    `mapstructure:"http-port"`
 }
 
-// Registry holds the reference to services that implement protot
-type Registry interface {
-	Config() *Config
-	RegisterGRPC(*grpc.Server)
+// HTTPGateway specifies the method in order to implement HTTP gateway functionality
+type HTTPGateway interface {
 	RegisterHTTP(ctx context.Context, gwMux *runtime.ServeMux, conn *grpc.ClientConn)
 }
 
-// ListenAndServe will listen and serve the GRPC registry
-func ListenAndServe(registry Registry, logger *zap.Logger) {
-	stopCh := signals.SetupSignalHandler()
-	config := registry.Config()
+// Service holds to properties for the GRPC service
+type Service struct {
+	config     *Config
+	logger     *zap.Logger
+	GRPCServer *grpc.Server
+}
 
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", config.GRPCPort))
+// NewService will initiate a new GRPC service
+func NewService(config *Config, logger *zap.Logger) *Service {
+	return &Service{
+		config:     config,
+		logger:     logger,
+		GRPCServer: grpc.NewServer(),
+	}
+}
+
+// ListenAndServe will listen and serve the GRPC registry
+func (s *Service) ListenAndServe(httpService HTTPGateway) {
+	stopCh := signals.SetupSignalHandler()
+
+	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.GRPCPort))
 	if err != nil {
-		logger.Fatal("failed to listen", zap.Int("port", config.GRPCPort))
+		s.logger.Fatal("failed to listen", zap.Int("port", s.config.GRPCPort))
 	}
 
-	grpcServer := grpc.NewServer()
 	healthServer := health.NewServer()
-	reflection.Register(grpcServer)
-	grpc_health_v1.RegisterHealthServer(grpcServer, healthServer)
-	healthServer.SetServingStatus(config.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
-	registry.RegisterGRPC(grpcServer)
+	reflection.Register(s.GRPCServer)
+	grpc_health_v1.RegisterHealthServer(s.GRPCServer, healthServer)
+	healthServer.SetServingStatus(s.config.ServiceName, grpc_health_v1.HealthCheckResponse_SERVING)
 
 	// Start serving the gRPC server
 	go func() {
-		if err := grpcServer.Serve(listener); err != nil {
-			logger.Fatal("failed to serve gRPC server", zap.Error(err))
+		if err := s.GRPCServer.Serve(listener); err != nil {
+			s.logger.Fatal("failed to serve gRPC server", zap.Error(err))
 		}
 	}()
 
-	logger.Info("started gRPC server", zap.Int("port", config.GRPCPort))
+	s.logger.Info("started gRPC server", zap.Int("port", s.config.GRPCPort))
 
 	// Connect to the gRPC server
 	conn, err := grpc.DialContext(
 		context.Background(),
-		fmt.Sprintf("0.0.0.0:%d", config.GRPCPort),
+		fmt.Sprintf("0.0.0.0:%d", s.config.GRPCPort),
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 	)
 	if err != nil {
-		logger.Fatal("failed to dial server", zap.Error(err))
+		s.logger.Fatal("failed to dial server", zap.Error(err))
 	}
 
 	gwmux := runtime.NewServeMux()
-	registry.RegisterHTTP(context.Background(), gwmux, conn)
+	httpService.RegisterHTTP(context.Background(), gwmux, conn)
 
 	httpServer := &http.Server{
-		Addr:    fmt.Sprintf(":%d", config.HTTPPort),
+		Addr:    fmt.Sprintf(":%d", s.config.HTTPPort),
 		Handler: gwmux,
 	}
 
 	// Start serving the HTTP server
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
-			logger.Fatal("failed to serve http server", zap.Error(err))
+			s.logger.Fatal("failed to serve http server", zap.Error(err))
 		}
 	}()
 
-	logger.Info("started HTTP server", zap.Int("port", config.HTTPPort))
+	s.logger.Info("started HTTP server", zap.Int("port", s.config.HTTPPort))
 
 	<-stopCh
-	grpcServer.GracefulStop()
+	s.GRPCServer.GracefulStop()
 	httpServer.Shutdown(context.Background())
 
-	logger.Info("shutting down gRPC and HTTP server")
+	s.logger.Info("shutting down gRPC and HTTP server")
 }

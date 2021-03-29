@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+option go_package = "auth/v1;auth_v1";
+
+package auth.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+service AuthService {
+    rpc SignIn(SignInRequest) returns (SignInResponse) {
+        option (google.api.http) = {
+          post: "/v1/auth/signin"
+          body: "*"
+        };
+    }
+
+    rpc SignUp(SignUpRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+          post: "/v1/auth/signup"
+          body: "*"
+        };
+    }
+}
+
+message SignInRequest {
+    string email = 1;
+    string password = 2;
+}
+
+message SignInResponse {
+    string access_token = 1;
+}
+
+message SignUpRequest {
+    string name = 1;
+    string email = 2;
+    string password = 3;
+}
