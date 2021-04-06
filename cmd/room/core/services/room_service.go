@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/domain"
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/ports"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/domain"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/ports"
 )
 
 // RoomService will act as the entrypoint to the core domain
@@ -20,6 +20,11 @@ func NewRoomService(roomRepo ports.RoomRepository) *RoomService {
 // Create will create a new room
 func (r *RoomService) Create(room *domain.Room) (*domain.Room, error) {
 	return r.roomRepository.Create(room)
+}
+
+// GetBySID will retrieve the room with specified SID
+func (r *RoomService) GetBySID(sid string) (*domain.Room, error) {
+	return r.roomRepository.GetBySID(sid)
 }
 
 // List will list all the rooms

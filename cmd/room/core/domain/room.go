@@ -9,6 +9,7 @@ import (
 // Room holds the properties for a Room entity
 type Room struct {
 	ID        uuid.UUID `gorm:"primarykey"`
+	SID       string
 	Name      string
 	CreatedAt time.Time
 	UpdatedAt time.Time

@@ -1,7 +1,7 @@
 version: v1beta1
 name: buf.build/trconley/clubhouse-backend-clone
-deps:
-  - buf.build/beta/googleapis
+#deps:
+#  - buf.build/beta/googleapis
 build:
   roots:
     - proto/

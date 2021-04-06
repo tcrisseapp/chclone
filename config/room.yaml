@@ -1,6 +1,5 @@
 svc: "room"
-grpc-port: 3550
-http-port: 8080
+port: 3550
 
 # Postgres configuration
 pg-host: "postgres"

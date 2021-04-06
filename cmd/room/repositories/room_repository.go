@@ -1,7 +1,7 @@
 package repositories
 
 import (
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/domain"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/domain"
 	"gorm.io/gorm"
 )
 
@@ -20,6 +20,16 @@ func NewRoomRepository(db *gorm.DB) *RoomRepository {
 // Create will create a new room
 func (r *RoomRepository) Create(room *domain.Room) (*domain.Room, error) {
 	err := r.db.Create(room).Error
+	if err != nil {
+		return nil, err
+	}
+	return room, nil
+}
+
+// GetBySID will retrieve the room by SID
+func (r *RoomRepository) GetBySID(sid string) (*domain.Room, error) {
+	var room *domain.Room
+	err := r.db.Where("sid = ?", sid).First(room).Error
 	if err != nil {
 		return nil, err
 	}

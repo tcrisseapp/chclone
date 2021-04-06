@@ -2,18 +2,20 @@ package handlers
 
 import (
 	"context"
+	"io"
 
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/domain"
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/ports"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/domain"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/ports"
 	pb "github.com/TRConley/clubhouse-backend-clone/gen/go/room/v1"
+	sfuPB "github.com/TRConley/clubhouse-backend-clone/gen/go/sfu/v1"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"gorm.io/gorm"
 )
 
 // GRPCHandler will handle the gRPC input
@@ -37,29 +39,60 @@ func (g *GRPCHandler) RegisterHTTP(ctx context.Context, gwMux *runtime.ServeMux,
 	pb.RegisterRoomServiceHandler(ctx, gwMux, conn)
 }
 
-// CreateRoom will create a new room
-func (g *GRPCHandler) CreateRoom(ctx context.Context, in *pb.CreateRoomRequest) (*pb.CreateRoomResponse, error) {
-	if in.GetName() == "" {
-		return nil, status.Error(codes.InvalidArgument, "name cannot be empty")
+// Signal will function as a wrapper around the ion-sfu signal logic
+func (g *GRPCHandler) Signal(stream pb.RoomService_SignalServer) error {
+	errorCh := make(chan error)
+	replyCh := make(chan *sfuPB.SignalReply)
+	requestCh := make(chan *sfuPB.SignalRequest)
+
+	defer func() {
+		close(errorCh)
+		close(replyCh)
+		close(requestCh)
+	}()
+
+	go func() {
+		for {
+			req, err := stream.Recv()
+			if err != nil {
+				g.logger.Error("failed to receive message", zap.Error(err))
+				errorCh <- err
+				return
+			}
+			requestCh <- req
+		}
+	}()
+
+	for {
+		select {
+		case err := <-errorCh:
+			return err
+		case reply, ok := <-replyCh:
+			if !ok {
+				return io.EOF
+			}
+			stream.Send(reply)
+		case request, ok := <-requestCh:
+			if !ok {
+				return io.EOF
+			}
+			g.logger.Info("received signal request", zap.Any("request", request.String()))
+
+			// handle the request message
+			switch requestM := request.Payload.(type) {
+			case *sfuPB.SignalRequest_Join:
+				g.logger.Info("received join request")
+
+				_, err := g.roomService.GetBySID(requestM.Join.Sid)
+				if err != nil && err != gorm.ErrRecordNotFound {
+					g.logger.Error("unabel to get room by sid", zap.Error(err))
+					return status.Error(codes.Internal, "unable to get room by sid")
+				}
+
+			}
+		}
 	}
 
-	room, err := g.roomService.Create(&domain.Room{
-		ID:   uuid.Must(uuid.NewV4(), nil),
-		Name: in.GetName(),
-	})
-	if err != nil {
-		return nil, status.Error(codes.Internal, "unable to create room")
-	}
-
-	out, err := convertRoomToPB(room)
-	if err != nil {
-		g.logger.Error("failed to convert room to proto", zap.Error(err))
-		return nil, status.Error(codes.Internal, "unable to create room")
-	}
-
-	return &pb.CreateRoomResponse{
-		Room: out,
-	}, nil
 }
 
 // ListRooms will list all the rooms

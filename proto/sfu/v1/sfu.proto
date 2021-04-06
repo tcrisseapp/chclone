@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-option go_package = "sfu/v1;sfu_v1";
+option go_package = "github.com/TRConley/clubhouse-backend-clone/gen/go/sfu/v1;sfu_v1";
 
 package sfu.v1;
 

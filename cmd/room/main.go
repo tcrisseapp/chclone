@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/domain"
+	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/services"
 	"github.com/TRConley/clubhouse-backend-clone/cmd/room/handlers"
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/models"
 	"github.com/TRConley/clubhouse-backend-clone/cmd/room/repositories"
-	"github.com/TRConley/clubhouse-backend-clone/cmd/room/services"
 	pb "github.com/TRConley/clubhouse-backend-clone/gen/go/room/v1"
 	"github.com/TRConley/clubhouse-backend-clone/pkg/database"
 	"github.com/TRConley/clubhouse-backend-clone/pkg/grpcservice"
@@ -79,7 +79,7 @@ func main() {
 	s := grpcservice.NewService(&grpcConfig, logger)
 	s.GRPCServer.RegisterService(&pb.RoomService_ServiceDesc, grpcHandler)
 
-	s.ListenAndServe(grpcHandler)
+	s.ListenAndServe()
 }
 
 func initDatabase() (*gorm.DB, error) {
@@ -94,7 +94,7 @@ func initDatabase() (*gorm.DB, error) {
 	}
 
 	// Auto migrate models
-	db.AutoMigrate(&models.Room{})
+	db.AutoMigrate(&domain.Room{})
 
 	return db, nil
 }
