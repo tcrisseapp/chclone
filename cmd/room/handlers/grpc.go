@@ -8,11 +8,11 @@ import (
 	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/ports"
 	pb "github.com/TRConley/clubhouse-backend-clone/gen/go/room/v1"
 	sfuPB "github.com/TRConley/clubhouse-backend-clone/gen/go/sfu/v1"
+	"github.com/TRConley/clubhouse-backend-clone/pkg/grpcservice"
+	"github.com/cockroachdb/errors"
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"gorm.io/gorm"
@@ -24,26 +24,37 @@ type GRPCHandler struct {
 
 	logger      *zap.Logger
 	roomService ports.RoomService
+	sfuClient   sfuPB.SFUClient
 }
 
 // NewGRPCHandler will initiate a new GRPCHandler instance
-func NewGRPCHandler(logger *zap.Logger, roomService ports.RoomService) *GRPCHandler {
+func NewGRPCHandler(logger *zap.Logger, roomService ports.RoomService) (*GRPCHandler, error) {
+	sfuConn, err := grpcservice.Dial("ion-sfu:50052")
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to connect to ion-suf")
+	}
+
 	return &GRPCHandler{
 		logger:      logger,
 		roomService: roomService,
-	}
-}
-
-// RegisterHTTP will register the HTTP grpc-gateway
-func (g *GRPCHandler) RegisterHTTP(ctx context.Context, gwMux *runtime.ServeMux, conn *grpc.ClientConn) {
-	pb.RegisterRoomServiceHandler(ctx, gwMux, conn)
+		sfuClient:   sfuPB.NewSFUClient(sfuConn),
+	}, nil
 }
 
 // Signal will function as a wrapper around the ion-sfu signal logic
 func (g *GRPCHandler) Signal(stream pb.RoomService_SignalServer) error {
+	g.logger.Info("came heree")
+
+	ctx := context.Background()
 	errorCh := make(chan error)
 	replyCh := make(chan *sfuPB.SignalReply)
 	requestCh := make(chan *sfuPB.SignalRequest)
+
+	sfuStream, err := g.sfuClient.Signal(ctx)
+	if err != nil {
+		g.logger.Error("unable to open signal stream to sfu", zap.Error(err))
+		return status.Error(codes.Internal, "unable to signal sfu")
+	}
 
 	defer func() {
 		close(errorCh)
@@ -63,10 +74,23 @@ func (g *GRPCHandler) Signal(stream pb.RoomService_SignalServer) error {
 		}
 	}()
 
+	go func() {
+		for {
+			rep, err := sfuStream.Recv()
+			if err != nil {
+				g.logger.Error("failed to reply message", zap.Error(err))
+				errorCh <- err
+				return
+			}
+			replyCh <- rep
+		}
+	}()
+
 	for {
 		select {
 		case err := <-errorCh:
-			return err
+			g.logger.Error("recevied an error", zap.Error(err))
+			return status.Error(codes.Internal, "unable to create room")
 		case reply, ok := <-replyCh:
 			if !ok {
 				return io.EOF
@@ -87,6 +111,28 @@ func (g *GRPCHandler) Signal(stream pb.RoomService_SignalServer) error {
 				if err != nil && err != gorm.ErrRecordNotFound {
 					g.logger.Error("unabel to get room by sid", zap.Error(err))
 					return status.Error(codes.Internal, "unable to get room by sid")
+				}
+
+				if !errors.Is(err, gorm.ErrRecordNotFound) {
+					_, err := g.roomService.Create(requestM.Join.Sid)
+					if err != nil {
+						g.logger.Error("unable to create room", zap.Error(err))
+						return status.Error(codes.Internal, "unable to create room")
+					}
+				}
+
+				err = sfuStream.Send(request)
+				if err != nil {
+					g.logger.Error("unable to send message to sfu", zap.Error(err))
+					return status.Error(codes.Internal, "unable to forward message to sfu")
+				}
+			default:
+				g.logger.Info("received other request")
+
+				err := sfuStream.Send(request)
+				if err != nil {
+					g.logger.Error("unable to send message to sfu", zap.Error(err))
+					return status.Error(codes.Internal, "unable to forward message to sfu")
 				}
 
 			}

@@ -8,16 +8,10 @@ services:
       args:
         SERVICE: room
     container_name: room 
-    extra_hosts:
-      - postgres:172.16.16.2
-      - ion-sfu:172.16.16.3
     ports:
-        - "3550:3550"
+      - "3550:3550"
     volumes:
-        - ./config/room.yaml:/home/app/config.yaml
-    networks:
-      chclone:
-        ipv4_address: 172.16.16.1
+      - ./config/room.yaml:/home/app/config.yaml
     depends_on:
       - postgres
       - ion-sfu 
@@ -33,14 +27,8 @@ services:
         - POSTGRES_PORT=5432
     volumes:
       - db:/var/lib/postgresql/data
-    expose:
-      - "5432"
     ports:
       - "5432:5432"
-    privileged: false
-    networks:
-      chclone:
-        ipv4_address: 172.16.16.2
 
   ion-sfu:
     image: pionwebrtc/ion-sfu:latest-allrpc
@@ -52,16 +40,6 @@ services:
       - "7000:7000"
       - "50052:50052"
       - "5000-5200:5000-5200/udp"
-    networks:
-      chclone:
-        ipv4_address: 172.16.16.3
 
 volumes:
   db:
-
-networks:
-  chclone:
-    ipam:
-      driver: default
-      config:
-        - subnet: "172.16.16.0/16"

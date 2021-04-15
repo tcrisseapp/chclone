@@ -75,7 +75,11 @@ func main() {
 		logger.Fatal("error loading grpc config:", zap.Error(err))
 	}
 
-	grpcHandler := handlers.NewGRPCHandler(logger, roomService)
+	grpcHandler, err := handlers.NewGRPCHandler(logger, roomService)
+	if err != nil {
+		logger.Fatal("error creating grpc handler:", zap.Error(err))
+	}
+
 	s := grpcservice.NewService(&grpcConfig, logger)
 	s.GRPCServer.RegisterService(&pb.RoomService_ServiceDesc, grpcHandler)
 

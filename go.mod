@@ -3,6 +3,7 @@ module github.com/TRConley/clubhouse-backend-clone
 go 1.15
 
 require (
+	github.com/cockroachdb/errors v1.8.4 // indirect
 	github.com/desertbit/timer v0.0.0-20180107155436-c41aec40b27f // indirect
 	github.com/fsnotify/fsnotify v1.4.9 // indirect
 	github.com/golang/protobuf v1.5.1

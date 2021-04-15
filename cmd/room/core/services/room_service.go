@@ -3,6 +3,7 @@ package services
 import (
 	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/domain"
 	"github.com/TRConley/clubhouse-backend-clone/cmd/room/core/ports"
+	uuid "github.com/satori/go.uuid"
 )
 
 // RoomService will act as the entrypoint to the core domain
@@ -18,7 +19,12 @@ func NewRoomService(roomRepo ports.RoomRepository) *RoomService {
 }
 
 // Create will create a new room
-func (r *RoomService) Create(room *domain.Room) (*domain.Room, error) {
+func (r *RoomService) Create(sid string) (*domain.Room, error) {
+	room := &domain.Room{
+		ID:   uuid.Must(uuid.NewV4(), nil),
+		SID:  sid,
+		Name: "something",
+	}
 	return r.roomRepository.Create(room)
 }
 
